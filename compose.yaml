@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  frontend:
+    build: ./client
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://backend:3001
+
+    depends_on:
+      - backend
+    networks:
+      - space-network
+
+  backend:
+    build: ./server
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=space
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - space-network
+
+  postgres:
+    image: postgres:14
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=space
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d space"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - space-network
+
+  redis:
+    image: redis:7
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - space-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  space-network:
+    driver: bridge
